@@ -13,6 +13,7 @@ public:
 	const VkSurfaceKHR& vkHandle() { return surface; }
 
 	bool isPresentSupported(PhysicalDevice* physicalDevice);
+	void updateWindowSize();
 	int getWidth() { return width; }
 	int getHeight() { return height; }
 private:

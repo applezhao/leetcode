@@ -17,6 +17,7 @@ height(h)
 	{
 		std::cout << "Surfaces are not supported on current physical device!" << std::endl;
 	}
+	std::cout << "surface is created!" << std::endl;
 }
 
 
@@ -31,5 +32,10 @@ bool SurfaceKHR::isPresentSupported(PhysicalDevice* physicalDevice)
 	vkGetPhysicalDeviceSurfaceSupportKHR(physicalDevice->vkHandle(), physicalDevice->queueFamilyIndex,
 		surface, &presentSupport);
 	return presentSupport;
+}
+
+void SurfaceKHR::updateWindowSize()
+{
+	glfwGetFramebufferSize(window, &width, &height);
 }
 

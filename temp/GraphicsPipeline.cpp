@@ -1,8 +1,20 @@
 #include "GraphicsPipeline.h"
-
+#include "LogicalDevice.h"
+#include <iostream>
+GraphicsPipeline::GraphicsPipeline(LogicalDevice* logicalDevice, VkGraphicsPipelineCreateInfo create_info)
+{
+	this->logicalDevice = logicalDevice;
+	this->createInfo = create_info;
+	if (vkCreateGraphicsPipelines(this->logicalDevice->vkHandle(), VK_NULL_HANDLE, 1, 
+		&this->createInfo, nullptr, &handle) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create graphics pipeline!");
+	}
+	std::cout << "graphics pipeline is created!" << std::endl;
+}
 
 GraphicsPipeline::~GraphicsPipeline()
 {
+	vkDestroyPipeline(this->logicalDevice->vkHandle(), handle, nullptr);
 }
 
 GraphicsPipelineInfo::GraphicsPipelineInfo(VkExtent2D swapExtent)
@@ -19,7 +31,7 @@ GraphicsPipelineInfo::GraphicsPipelineInfo(VkExtent2D swapExtent)
 
 	TesselationInfo = {};
 
-	VkViewport viewport = {};
+	viewport = {};
 	viewport.x = 0.0f;
 	viewport.y = 0.0f;
 	viewport.width = (float)swapExtent.width;
@@ -27,9 +39,9 @@ GraphicsPipelineInfo::GraphicsPipelineInfo(VkExtent2D swapExtent)
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
-	VkRect2D scissor = {};
+	scissor = {};
 	scissor.offset = { 0, 0 };
-	scissor.extent = swapExtent;
+	scissor.extent = VkExtent2D{ swapExtent };
 
 	ViewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
 	ViewportInfo.viewportCount = 1;
@@ -37,6 +49,7 @@ GraphicsPipelineInfo::GraphicsPipelineInfo(VkExtent2D swapExtent)
 	ViewportInfo.scissorCount = 1;
 	ViewportInfo.pScissors = &scissor;
 
+	RasterizationInfo = {};
 	RasterizationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
 	RasterizationInfo.depthClampEnable = VK_FALSE;
 	RasterizationInfo.rasterizerDiscardEnable = VK_FALSE;
@@ -45,21 +58,15 @@ GraphicsPipelineInfo::GraphicsPipelineInfo(VkExtent2D swapExtent)
 	RasterizationInfo.cullMode = VK_CULL_MODE_BACK_BIT;
 	RasterizationInfo.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	RasterizationInfo.depthBiasEnable = VK_FALSE;
-	RasterizationInfo.depthBiasConstantFactor = 0.0f; // Optional
-	RasterizationInfo.depthBiasClamp = 0.0f; // Optional
-	RasterizationInfo.depthBiasSlopeFactor = 0.0f; // Optional
 
+	MultisampleInfo = {};
 	MultisampleInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
 	MultisampleInfo.sampleShadingEnable = VK_FALSE;
 	MultisampleInfo.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-	MultisampleInfo.minSampleShading = 1.0f; // Optional
-	MultisampleInfo.pSampleMask = nullptr; // Optional
-	MultisampleInfo.alphaToCoverageEnable = VK_FALSE; // Optional
-	MultisampleInfo.alphaToOneEnable = VK_FALSE; // Optional
 
 	DepthStencilInfo = {};
 
-	VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
+	colorBlendAttachment = {};
 	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	colorBlendAttachment.blendEnable = VK_FALSE;
 	colorBlendAttachment.srcColorBlendFactor = VK_BLEND_FACTOR_ONE; // Optional
@@ -84,24 +91,20 @@ GraphicsPipelineInfo::GraphicsPipelineInfo(VkExtent2D swapExtent)
 		VK_DYNAMIC_STATE_LINE_WIDTH
 	};
 
-	DynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-	DynamicStateInfo.dynamicStateCount = 2;
-	DynamicStateInfo.pDynamicStates = dynamicStates;
+	DynamicStateInfo = {};
 }
 
 VkGraphicsPipelineCreateInfo GraphicsPipelineInfo::GetPipelineCreateInfo() const {
 	VkGraphicsPipelineCreateInfo create_info = {};
 	create_info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	create_info.stageCount = 2;
-	//create_info.pStages = shaderStages;
 	create_info.pVertexInputState = &VertexInfo;
 	create_info.pInputAssemblyState = &AssemblyInfo;
-	create_info.pTessellationState = nullptr;//&TesselationInfo;
+	//create_info.pTessellationState = nullptr;//&TesselationInfo;
 	create_info.pViewportState = &ViewportInfo;
 	create_info.pRasterizationState = &RasterizationInfo;
 	create_info.pMultisampleState = &MultisampleInfo;
-	create_info.pDepthStencilState = nullptr;// &DepthStencilInfo;
+	//create_info.pDepthStencilState = nullptr;// &DepthStencilInfo;
 	create_info.pColorBlendState = &ColorBlendInfo;
-	create_info.pDynamicState = nullptr;//&DynamicStateInfo;
+	//create_info.pDynamicState = nullptr;//&DynamicStateInfo;
 	return create_info;
 }

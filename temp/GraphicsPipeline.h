@@ -17,6 +17,10 @@ struct GraphicsPipelineInfo
 	VkPipelineColorBlendStateCreateInfo ColorBlendInfo;
 	VkPipelineDynamicStateCreateInfo DynamicStateInfo;
 
+	VkViewport viewport;
+	VkRect2D scissor;
+	VkPipelineColorBlendAttachmentState colorBlendAttachment;
+
 	/** This method returns a VkGraphicsPipelineCreateInfo struct with its internal state object pointers set
 	*   to point to the members of this class. This is useful for short-cutting having to set them all yourself,
 	*   but be aware of object lifetime and make sure the class instance being pointed to exists when using the
@@ -34,7 +38,7 @@ struct GraphicsPipelineInfo
 class GraphicsPipeline
 {
 public:
-	GraphicsPipeline(LogicalDevice* logicalDevice, VkGraphicsPipelineCreateInfo create_info, VkPipeline handle);
+	GraphicsPipeline(LogicalDevice* logicalDevice, VkGraphicsPipelineCreateInfo create_info);
 	~GraphicsPipeline();
 
 	const VkPipeline& vkHandle() { return handle; }

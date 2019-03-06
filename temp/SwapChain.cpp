@@ -53,7 +53,7 @@ SwapChain::SwapChain(PhysicalDevice* physicalDevice, LogicalDevice* logicalDevic
 	if (vkCreateSwapchainKHR(logicalDevice->vkHandle(), &createInfo, nullptr, &swapchain) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create swap chain!");
 	}
-
+	std::cout << "swapchain is created!" << std::endl;
 	vkGetSwapchainImagesKHR(logicalDevice->vkHandle(), swapchain, &imageCount, nullptr);
 	swapChainImages.resize(imageCount);
 	vkGetSwapchainImagesKHR(logicalDevice->vkHandle(), swapchain, &imageCount, swapChainImages.data());
@@ -69,6 +69,7 @@ VkExtent2D SwapChain::getSwapExtent()
 	}
 	else
 	{
+		surface->updateWindowSize();
 		VkExtent2D actualExtent = { surface->getWidth() ,  surface->getHeight() };
 
 		actualExtent.width = std::max(swapchainSupportDetails.capabilities.minImageExtent.width,

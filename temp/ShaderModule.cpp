@@ -3,7 +3,7 @@
 #include "LogicalDevice.h"
 
 #include <fstream>
-
+#include <iostream>
 ShaderModule::ShaderModule(LogicalDevice* logicalDevice, const std::string& filename, const VkShaderStageFlagBits & stages)
 {
 	this->logicalDevice = logicalDevice;
@@ -18,7 +18,7 @@ ShaderModule::ShaderModule(LogicalDevice* logicalDevice, const std::string& file
 	if (vkCreateShaderModule(logicalDevice->vkHandle(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create shader module!");
 	}
-
+	std::cout << "shader module is created!" << std::endl;
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	pipelineInfo.stage = stages;
 	pipelineInfo.module = shaderModule;

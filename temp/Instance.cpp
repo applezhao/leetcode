@@ -37,6 +37,8 @@ Instance::Instance(const VkApplicationInfo* info, bool enableValidation) :
 	enableExtensions();
 	if (vkCreateInstance(&createInfo, nullptr, &handle) != VK_SUCCESS)
 		std::cerr << "failed to create instance!" << std::endl;
+
+	std::cout << "instance is created!" << std::endl;
 }
 
 Instance::~Instance() {

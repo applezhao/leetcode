@@ -52,6 +52,7 @@ public:
 	const VkExtent2D& getExtent() { return extent2D; }
 	const std::vector<VkImage> getImages() { return swapChainImages; }
 	const std::vector<VkImageView> getImageViews() { return swapChainImageViews; }
+	void createImageViews();
 private:
 	SwapChainSupportDetails swapchainSupportDetails;
 	void getSwapChainSupportDetails();
@@ -60,7 +61,7 @@ private:
 
 	VkExtent2D getSwapExtent();
 
-	void createImageViews();
+	
 private:
 	PhysicalDevice* physicalDevice;
 	LogicalDevice* logicalDevice;
