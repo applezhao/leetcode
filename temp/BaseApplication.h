@@ -17,6 +17,11 @@
 #include <glm/vec4.hpp>
 #include <glm/mat4x4.hpp>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
+#include <chrono>
+
 
 
 #include <iostream>
@@ -40,6 +45,11 @@
 
 #include "Polygon.h"
 #include "Buffer.h"
+
+#include "DescriptorSetLayout.h"
+#include "DescriptorPool.h"
+#include "DescriptorSet.h"
+
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
 const std::vector<VertexTightData> vertices = {
@@ -52,6 +62,13 @@ const std::vector<VertexTightData> vertices = {
 const std::vector<uint16_t> indices = {
 	0, 1, 2, 2, 3, 0
 };
+
+struct UBOMatrices {
+	alignas(16) glm::mat4 model;
+	alignas(16) glm::mat4 view;
+	alignas(16) glm::mat4 proj;
+};
+
 
 class BaseApplication {
 public:
@@ -93,6 +110,15 @@ private:
 	RenderPass* classRenderPass;
 	VkRenderPass renderPass;
 
+	DescriptorSetLayout* classdescriptorSetLayout;
+	VkDescriptorSetLayout descriptorSetLayout;
+
+	DescriptorPool* classDescriptorPool;
+	VkDescriptorPool descriptorPool;
+	std::vector<DescriptorSet*> classDescriptorSets;
+	std::vector<VkDescriptorSet> descriptorSets;
+
+
 	PipelineLayout* classPipelineLayout;
 	VkPipelineLayout pipelineLayout;
 
@@ -123,6 +149,13 @@ private:
 	MemoryAlloc* classIndexBufferMemory;
 	VkDeviceMemory indexBufferMemory;
 
+	//uniform data
+	UBOMatrices ubo;
+	std::vector<Buffer*> classuboBuffer;
+	std::vector<MemoryAlloc*> classuboBufferMemory;
+	std::vector<VkBuffer> uboBuffer;
+	std::vector<VkDeviceMemory> uboBufferMemory;
+
 	size_t currentFrame;
 private:
 	void initWindow()
@@ -144,12 +177,21 @@ private:
 		__createSwapChain();
 
 		__createRenderPass();
+		__createDescriptorSetLayout();
+		std::cout << "777" << std::endl;
 		__createGraphicsPipeline();
+		std::cout << "8880" << std::endl;
 		__createFrameBuffers();
+		std::cout << "8881" << std::endl;
 		__createCommandPool();
-
+		std::cout << "8882" << std::endl;
 		__createVertexBuffer();
 		__createIndexBuffer();
+		__createUniformBuffers();
+
+		std::cout << "999" << std::endl;
+		__createDescriptorPool();
+		__createDescriptorSets();
 
 		__createCommandBuffers();
 		__createSemaphore();
@@ -168,6 +210,16 @@ private:
 	void cleanup()
 	{
 		__cleanupSwapchain();
+
+		delete classDescriptorPool;
+		delete classdescriptorSetLayout;
+
+		for (size_t i = 0; i < swapChainImages.size(); i++)
+		{
+			delete classuboBuffer[i];
+			delete classuboBufferMemory[i];
+		}
+
 		delete classIndexBuffer;
 		delete classIndexBufferMemory;
 		delete classVertexBuffer;
@@ -209,7 +261,10 @@ private:
 		}
 
 			
-		std::cout << "acquire next image khr " << imageIndex << std::endl;
+		//std::cout << "acquire next image khr " << imageIndex << std::endl;
+		// update uniform data
+		__updateUnifromBuffers(imageIndex);
+
 		VkSubmitInfo submitInfo = {};
 		submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
@@ -288,6 +343,21 @@ private:
 			delete classRenderPass;
 		if(classRenderPass)
 			delete classSwapChain;
+	}
+
+	void __updateUnifromBuffers(uint32_t currentImage)
+	{
+		static auto startTime = std::chrono::high_resolution_clock::now();
+
+		auto currentTime = std::chrono::high_resolution_clock::now();
+		float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+
+		ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+		ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
+		ubo.proj[1][1] *= -1;
+
+		classuboBufferMemory[currentImage]->copyDataFromMemoryToGpu((void*)&ubo, sizeof(UBOMatrices));
 	}
 
 	void __createSemaphore()
@@ -401,10 +471,48 @@ private:
 		renderPass = classRenderPass->vkHandle();
 	}
 
+	void __createDescriptorSetLayout()
+	{
+		classdescriptorSetLayout = new DescriptorSetLayout(classLogicalDevice);
+		classdescriptorSetLayout->AddDescriptorBinding(
+			VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			VK_SHADER_STAGE_VERTEX_BIT,
+			0
+		);
+		descriptorSetLayout = classdescriptorSetLayout->vkHandle();
+	}
+
+	void __createDescriptorPool()
+	{
+		classDescriptorPool = new DescriptorPool(classLogicalDevice, swapChainImages.size());
+		descriptorPool = classDescriptorPool->vkHandle();
+	}
+	void __createDescriptorSets()
+	{
+		classDescriptorSets.resize(swapChainImages.size());
+		descriptorSets.resize(swapChainImages.size());
+
+		for (size_t i = 0; i < swapChainImages.size(); i++) 
+		{
+			classDescriptorSets[i] = new DescriptorSet(classLogicalDevice, swapChainImages.size(),
+				classDescriptorPool, classdescriptorSetLayout);
+
+			VkDescriptorBufferInfo bufferInfo = {};
+			bufferInfo.buffer = uboBuffer[i];
+			bufferInfo.offset = 0;
+			bufferInfo.range = sizeof(UBOMatrices);
+			classDescriptorSets[i]->addDescriptorInfo(bufferInfo, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				0);
+
+			classDescriptorSets[i]->update();
+
+			descriptorSets[i] = classDescriptorSets[i]->vkHandle();
+		}
+	}
 
 	void __createGraphicsPipeline()
 	{
-		classPipelineLayout = new PipelineLayout(classLogicalDevice);
+		classPipelineLayout = new PipelineLayout(classLogicalDevice, 1, classdescriptorSetLayout);
 		pipelineLayout = classPipelineLayout->vkHandle();
 
 		std::vector<ShaderModule*> classShaderModules(2);
@@ -436,10 +544,10 @@ private:
 		pipelineInfo.renderPass = renderPass;
 		pipelineInfo.subpass = 0;
 		pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-
+		std::cout << "====" << std::endl;
 		classGraphicsPipeline = new GraphicsPipeline(classLogicalDevice, pipelineInfo);
 		graphicsPipeline = classGraphicsPipeline->vkHandle();
-
+		std::cout << "----" << std::endl;
 		delete classShaderModules[0];
 		delete classShaderModules[1];
 	}
@@ -498,6 +606,24 @@ private:
 		indexBufferMemory = classIndexBufferMemory->vkHandle();
 	}
 
+	void __createUniformBuffers()
+	{
+		VkDeviceSize bufferSize = sizeof(UBOMatrices);
+		classuboBuffer.resize(swapChainImages.size());
+		classuboBufferMemory.resize(swapChainImages.size());
+		uboBuffer.resize(swapChainImages.size());
+		uboBufferMemory.resize(swapChainImages.size());
+
+		for (size_t i = 0; i < swapChainImages.size(); i++)
+		{
+			__createBuffer(bufferSize, nullptr, classuboBuffer[i], classuboBufferMemory[i],
+				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+			uboBuffer[i] = classuboBuffer[i]->vkHandle();
+			uboBufferMemory[i] = classuboBufferMemory[i]->vkHandle();
+		}
+
+	}
+
 	void __createBuffer(int bufferSize, void* data, Buffer*& buffer, MemoryAlloc*& memory, VkBufferUsageFlags usage)
 	{
 		Buffer* classStagingBuffer = new Buffer(classLogicalDevice, bufferSize,
@@ -506,7 +632,8 @@ private:
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
 		classStagingBufferMemory->bindBufferMemory();
-		classStagingBufferMemory->copyDataFromMemoryToGpu(data, bufferSize);
+		if(data)
+			classStagingBufferMemory->copyDataFromMemoryToGpu(data, bufferSize);
 
 		buffer = new Buffer(classLogicalDevice, bufferSize,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | usage, VK_SHARING_MODE_EXCLUSIVE);
@@ -554,6 +681,12 @@ private:
 			vkCmdBindVertexBuffers(classCommandPool->commandBuffers[i], 0, 1, vertexBuffers, offsets);
 
 			vkCmdBindIndexBuffer(classCommandPool->commandBuffers[i], classIndexBuffer->vkHandle(), 0, VK_INDEX_TYPE_UINT16);
+
+			//update uniform
+			vkCmdBindDescriptorSets(classCommandPool->commandBuffers[i], VK_PIPELINE_BIND_POINT_GRAPHICS,
+				pipelineLayout, 0, 1, &descriptorSets[i], 0, nullptr);
+			vkCmdDrawIndexed(classCommandPool->commandBuffers[i],
+				static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
 
 			//vkCmdDraw(classCommandPool->commandBuffers[i], 3, 1, 0, 0);
 			vkCmdDrawIndexed(classCommandPool->commandBuffers[i], static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
